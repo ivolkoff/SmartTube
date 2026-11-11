@@ -47,6 +47,7 @@ public class VoxTranslateController extends BasePlayerController {
     private TranslationAudioPlayer mTranslationPlayer;
     private Disposable mRequest;
     private Disposable mLogin;
+    private androidx.appcompat.app.AlertDialog mLoginDialog;
     private int mSessionId;
     /** User wants translation: survives switching to the next video. */
     private boolean mArmed;
@@ -326,10 +327,11 @@ public class VoxTranslateController extends BasePlayerController {
         boolean signedIn = prefs.getOAuthToken() != null;
         dialog.appendSingleButton(UiOptionItem.from(getContext().getString(signedIn ? R.string.vox_logout : R.string.vox_login),
                 option -> {
-                    dialog.closeDialog();
                     if (signedIn) {
                         prefs.setOAuthToken(null);
+                        dialog.closeDialog();
                     } else {
+                        dialog.closeDialog(); // the QR is an AlertDialog over the player, it must not sit under this menu
                         login();
                     }
                 }));
@@ -349,6 +351,7 @@ public class VoxTranslateController extends BasePlayerController {
     }
 
     private void login() {
+        Log.i(TAG, "Yandex login started, configured=%b", VoxYandexAuth.isConfigured());
         if (!VoxYandexAuth.isConfigured()) {
             MessageHelpers.showLongMessage(getContext(), R.string.vox_login_no_app);
             return;
@@ -356,30 +359,32 @@ public class VoxTranslateController extends BasePlayerController {
         if (mLogin != null) {
             mLogin.dispose();
         }
-        AppDialogPresenter dialog = AppDialogPresenter.instance(getContext());
         mLogin = VoxYandexAuth.requestDeviceCode()
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext(code -> {
-                    dialog.appendSingleButton(UiOptionItem.from(
+                    String url = VoxYandexAuth.qrUrl(code);
+                    Log.i(TAG, "Yandex device code received, expires in %ds", code.expiresInSec);
+                    mLoginDialog = VoxQrDialog.show(getActivity(), getContext().getString(R.string.vox_login_title), url,
                             getContext().getString(R.string.vox_login_code, code.verificationUrl, code.userCode),
-                            option -> dialog.closeDialog()));
-                    // Closing the dialog cancels polling
-                    dialog.setOnFinish(() -> {
-                        if (mLogin != null) {
-                            mLogin.dispose();
-                        }
-                    });
-                    dialog.showDialog(getContext().getString(R.string.vox_login_title));
+                            () -> {
+                                if (mLogin != null) {
+                                    mLogin.dispose(); // closing the QR cancels polling
+                                }
+                            });
                 })
                 .observeOn(io.reactivex.schedulers.Schedulers.io())
                 .concatMap(VoxYandexAuth::pollToken)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(token -> {
+                    Log.i(TAG, "Yandex login succeeded");
                     VoxPrefs.instance(getContext()).setOAuthToken(token);
-                    dialog.closeDialog();
+                    mLoginDialog.dismiss();
                     MessageHelpers.showLongMessage(getContext(), R.string.vox_login_ok);
                 }, error -> {
                     Log.e(TAG, "Yandex login failed: %s", error.getMessage());
+                    if (mLoginDialog != null) {
+                        mLoginDialog.dismiss();
+                    }
                     MessageHelpers.showLongMessage(getContext(), getContext().getString(R.string.vox_login_failed, error.getMessage()));
                 });
     }

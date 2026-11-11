@@ -70,6 +70,7 @@ dependencies {
     implementation project(':mediaserviceinterfaces')
     implementation project(':youtubeapi')
     implementation project(':filepicker-lib')
+    implementation 'com.google.zxing:core:3.3.3' // Vox: local QR for Yandex login
 
     implementation 'io.reactivex.rxjava2:rxandroid:' + rxAndroidVersion
     implementation 'io.reactivex.rxjava2:rxjava:' + rxJavaVersion

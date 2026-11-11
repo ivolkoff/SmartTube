@@ -42,6 +42,11 @@ public class VoxYandexAuth {
         }
     }
 
+    /** Device page with the code in the query, so scanning the QR needs no typing (undocumented by Yandex). */
+    public static String qrUrl(DeviceCode code) {
+        return "https://oauth.yandex.ru/device?code=" + code.userCode;
+    }
+
     public static boolean isConfigured() {
         return !BuildConfig.VOX_YANDEX_CLIENT_ID.isEmpty() && !BuildConfig.VOX_YANDEX_CLIENT_SECRET.isEmpty();
     }
