@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Personal build: never offer the upstream APK as an update -->
-    <string-array name="update_urls" />
+    <!-- Built by .github/workflows/vox.yml -->
+    <string-array name="update_urls">
+        <item>https://github.com/ivolkoff/SmartTube/releases/download/vox-latest/smarttube_vox.json</item>
+    </string-array>
 </resources>
