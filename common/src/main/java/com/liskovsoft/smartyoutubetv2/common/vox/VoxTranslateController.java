@@ -39,7 +39,7 @@ public class VoxTranslateController extends BasePlayerController {
     private static final int ACTION_ID = R.id.action_vox_translate;
     private static final long SYNC_INTERVAL_MS = 2_000;
     private static final long MAX_DRIFT_MS = 400;
-    private static final float[] ORIGINAL_VOLUMES = {0f, 0.15f, 0.3f, 0.5f};
+    private static final float[] ORIGINAL_VOLUMES = {0f, 0.05f, 0.1f, 0.15f};
 
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final Runnable mSync = this::syncTick;
