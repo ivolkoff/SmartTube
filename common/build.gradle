@@ -26,12 +26,12 @@ android {
         // Additionally, you should extend your application from MultiDexApplication
         multiDexEnabled = true
 
-        // Own Yandex OAuth app for Vox lively voices; kept out of git in local.properties
+        // Own Yandex OAuth app for Vox lively voices; the secret stays on the token-exchange server
         def voxProps = new Properties()
         def localProps = rootProject.file('local.properties')
         if (localProps.exists()) localProps.withInputStream { voxProps.load(it) }
         buildConfigField 'String', 'VOX_YANDEX_CLIENT_ID', '"' + voxProps.getProperty('vox.yandexClientId', '') + '"'
-        buildConfigField 'String', 'VOX_YANDEX_CLIENT_SECRET', '"' + voxProps.getProperty('vox.yandexClientSecret', '') + '"'
+        buildConfigField 'String', 'VOX_OAUTH_TOKEN_URL', '"' + voxProps.getProperty('vox.oauthTokenUrl', '') + '"'
     }
 
     buildTypes {

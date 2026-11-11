@@ -83,7 +83,7 @@ jobs:
           } > keystore.properties
           {
             echo "vox.yandexClientId=${{ secrets.VOX_YANDEX_CLIENT_ID }}"
-            echo "vox.yandexClientSecret=${{ secrets.VOX_YANDEX_CLIENT_SECRET }}"
+            echo "vox.oauthTokenUrl=${{ secrets.VOX_OAUTH_TOKEN_URL }}"
           } > local.properties
 
       - name: Test
