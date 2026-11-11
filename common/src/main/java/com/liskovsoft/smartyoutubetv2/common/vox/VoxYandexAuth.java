@@ -16,11 +16,11 @@ import okhttp3.Response;
 
 /**
  * Yandex OAuth device flow (ya.ru/device) with the user's own OAuth app.
- * Token exchange needs the client secret, so it comes from local.properties, never from git.
+ * The token exchange needs the client secret, so it goes through our server (VOX_OAUTH_TOKEN_URL),
+ * which adds the secret; the APK only knows the client id.
  */
 public class VoxYandexAuth {
     private static final String DEVICE_CODE_URL = "https://oauth.yandex.ru/device/code";
-    private static final String TOKEN_URL = "https://oauth.yandex.ru/token";
     private static final OkHttpClient sClient = new OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
@@ -48,7 +48,7 @@ public class VoxYandexAuth {
     }
 
     public static boolean isConfigured() {
-        return !BuildConfig.VOX_YANDEX_CLIENT_ID.isEmpty() && !BuildConfig.VOX_YANDEX_CLIENT_SECRET.isEmpty();
+        return !BuildConfig.VOX_YANDEX_CLIENT_ID.isEmpty() && !BuildConfig.VOX_OAUTH_TOKEN_URL.isEmpty();
     }
 
     public static Observable<DeviceCode> requestDeviceCode() {
@@ -67,12 +67,8 @@ public class VoxYandexAuth {
     public static Observable<String> pollToken(DeviceCode code) {
         return Observable.interval(code.intervalSec, code.intervalSec, TimeUnit.SECONDS, Schedulers.io())
                 .take(Math.max(1, code.expiresInSec / code.intervalSec))
-                .map(tick -> post(TOKEN_URL, new FormBody.Builder()
-                        .add("grant_type", "device_code")
-                        .add("code", code.deviceCode)
-                        .add("client_id", BuildConfig.VOX_YANDEX_CLIENT_ID)
-                        .add("client_secret", BuildConfig.VOX_YANDEX_CLIENT_SECRET)
-                        .build()))
+                .map(tick -> post(BuildConfig.VOX_OAUTH_TOKEN_URL + "?code=" + code.deviceCode,
+                        new FormBody.Builder().build()))
                 .filter(json -> {
                     String error = json.optString("error");
                     if ("authorization_pending".equals(error)) {
