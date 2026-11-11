@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="action_vox_translate" type="id"/>
+
+    <string name="vox_translate" translatable="false">Закадровый перевод (RU)</string>
+    <string name="vox_requesting" translatable="false">Запрашиваю перевод…</string>
+    <string name="vox_waiting" translatable="false">Перевод готовится, ещё ~%d с</string>
+    <string name="vox_ready" translatable="false">Перевод включён</string>
+    <string name="vox_ready_lively" translatable="false">Перевод включён (живые голоса)</string>
+    <string name="vox_lively_fallback" translatable="false">Живые голоса недоступны, включаю обычную озвучку</string>
+    <string name="vox_error" translatable="false">Перевод не удался: %s</string>
+    <string name="vox_auth_rejected" translatable="false">Яндекс отклонил вход, войдите заново</string>
+    <string name="vox_settings" translatable="false">Закадровый перевод</string>
+    <string name="vox_lively" translatable="false">Живые голоса</string>
+    <string name="vox_login" translatable="false">Войти в Яндекс (для живых голосов)</string>
+    <string name="vox_logout" translatable="false">Выйти из Яндекса</string>
+    <string name="vox_login_no_app" translatable="false">В сборке нет client_id Яндекса (vox.yandexClientId в local.properties)</string>
+    <string name="vox_login_title" translatable="false">Вход в Яндекс</string>
+    <string name="vox_login_code" translatable="false">Откройте %1$s и введите код: %2$s</string>
+    <string name="vox_login_ok" translatable="false">Вход в Яндекс выполнен</string>
+    <string name="vox_login_failed" translatable="false">Вход в Яндекс не удался: %s</string>
+    <string name="vox_original_volume" translatable="false">Громкость оригинала под переводом</string>
+</resources>
