@@ -25,6 +25,13 @@ android {
         // More info: http://myhexaville.com/2017/03/10/android-multidex/
         // Additionally, you should extend your application from MultiDexApplication
         multiDexEnabled = true
+
+        // Own Yandex OAuth app for Vox lively voices; kept out of git in local.properties
+        def voxProps = new Properties()
+        def localProps = rootProject.file('local.properties')
+        if (localProps.exists()) localProps.withInputStream { voxProps.load(it) }
+        buildConfigField 'String', 'VOX_YANDEX_CLIENT_ID', '"' + voxProps.getProperty('vox.yandexClientId', '') + '"'
+        buildConfigField 'String', 'VOX_YANDEX_CLIENT_SECRET', '"' + voxProps.getProperty('vox.yandexClientSecret', '') + '"'
     }
 
     buildTypes {

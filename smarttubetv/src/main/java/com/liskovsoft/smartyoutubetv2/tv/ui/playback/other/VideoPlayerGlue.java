@@ -40,6 +40,7 @@ import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.ScreenDimmingAction
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.SeekIntervalAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.ShareAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.SoundOffAction;
+import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.VoxTranslateAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.VideoInfoAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.PipAction;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.actions.PlaybackQueueAction;
@@ -134,6 +135,7 @@ public class VideoPlayerGlue extends MaxControlsVideoPlayerGlue<PlayerAdapter> i
         putAction(new RotateAction(context));
         putAction(new FlipAction(context));
         putAction(new SoundOffAction(context));
+        putAction(new VoxTranslateAction(context));
     }
 
     @Override
@@ -204,6 +206,7 @@ public class VideoPlayerGlue extends MaxControlsVideoPlayerGlue<PlayerAdapter> i
         // Origin: {@link androidx.leanback.widget.ControlBarPresenter#MAX_CONTROLS}
         // Custom mod: {@link com.liskovsoft.smartyoutubetv2.tv.ui.mod.leanback.playerglue.ControlBarPresenter#MAX_CONTROLS}
 
+        adapter.add(mActions.get(R.id.action_vox_translate));
         if (mPlayerTweaksData.isPlayerButtonEnabled(PlayerTweaksData.PLAYER_BUTTON_HIGH_QUALITY)) {
             adapter.add(mActions.get(R.id.lb_control_high_quality));
         }
