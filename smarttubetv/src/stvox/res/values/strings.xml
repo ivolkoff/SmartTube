@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string translatable="false" name="app_name"><![CDATA[SmartTube Vox]]></string>
+    <string translatable="false" name="browse_title"><![CDATA[SmartTube Vox]]></string>
+    <string translatable="false" name="search_authority">io.github.ivolkoff.smarttubevox</string>
+</resources>
