@@ -512,10 +512,11 @@ public class VotClient {
 
         if (response.status == VotTranslationResponse.STATUS_FAILED) {
             logTranslationStatus("VOT translation response STATUS_FAILED", response);
-            if (allowLivelyFallback && useLively && isLivelyUnavailableError(response.message)) {
+            // Lively voices also fail silently (no message, shouldRetry=1) on some videos: retry with the standard voice
+            if (allowLivelyFallback && useLively) {
                 logD("Lively voice unavailable, retrying with Standard voice");
                 emitter.onNext(VotProgress.livelyFallback());
-                pollTranslation(emitter, youtubeUrl, durationSec, allowAudioFallback, false);
+                pollTranslation(emitter, youtubeUrl, durationSec, allowAudioFallback, false, false, audioSourceProvider);
                 return false;
             }
             // Проверяем, не является ли backend message маркером unsupported video

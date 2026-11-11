@@ -7,6 +7,7 @@ import androidx.annotation.Nullable;
 
 import com.liskovsoft.mediaserviceinterfaces.data.MediaFormat;
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItemFormatInfo;
+import com.liskovsoft.sharedutils.helpers.Helpers;
 import com.liskovsoft.sharedutils.helpers.MessageHelpers;
 import com.liskovsoft.sharedutils.mylogger.Log;
 import com.liskovsoft.smartyoutubetv2.common.R;
@@ -16,6 +17,7 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerU
 import com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.OptionItem;
 import com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.UiOptionItem;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.AppDialogPresenter;
+import com.liskovsoft.smartyoutubetv2.common.exoplayer.selector.FormatItem;
 import com.liskovsoft.smartyoutubetv2.common.vot.TranslationAudioPlayer;
 import com.liskovsoft.smartyoutubetv2.common.vot.VotAudioSource;
 import com.liskovsoft.smartyoutubetv2.common.vot.VotClient;
@@ -56,6 +58,8 @@ public class VoxTranslateController extends BasePlayerController {
     private float mSavedVolume = 1f;
     private int mLastShownEta = -1;
     private boolean mUsedLively;
+    @Nullable
+    private FormatItem mSavedAudioFormat;
 
     @Override
     public void onButtonClicked(int buttonId, int buttonState) {
@@ -79,6 +83,7 @@ public class VoxTranslateController extends BasePlayerController {
 
     @Override
     public void onNewVideo(Video item) {
+        mSavedAudioFormat = null; // belongs to the previous video
         stop();
     }
 
@@ -143,6 +148,9 @@ public class VoxTranslateController extends BasePlayerController {
         }
         stop();
         setButton(true);
+        if (getPlayer().getDurationMs() <= 0) {
+            return; // not loaded yet: Yandex needs the real duration, onVideoLoaded starts us
+        }
         MessageHelpers.showMessage(getContext(), R.string.vox_requesting);
 
         if (mClient == null) {
@@ -236,6 +244,7 @@ public class VoxTranslateController extends BasePlayerController {
                     return;
                 }
                 mTranslationStarted = true;
+                switchToOriginalAudio();
                 mTranslationPlayer.startPlayback(1f);
                 if (!getPlayer().isPlaying()) {
                     mTranslationPlayer.pause();
@@ -290,7 +299,43 @@ public class VoxTranslateController extends BasePlayerController {
         mTranslationStarted = false;
         mLastShownEta = -1;
         restoreVolume();
+        restoreAudioFormat();
         setButton(mArmed && getVideo() != null);
+    }
+
+    /** YouTube dubs (e.g. "ru (dubbed-auto)") would talk over the translation, so play the original track. */
+    private void switchToOriginalAudio() {
+        FormatItem current = getPlayer().getAudioFormat();
+        if (current == null || current.getLanguage() == null || current.getLanguage().contains("(original)")) {
+            return;
+        }
+        FormatItem original = null;
+        for (FormatItem format : getPlayer().getAudioFormats()) {
+            String lang = format.getLanguage();
+            if (lang == null || !lang.contains("(original)")) {
+                continue;
+            }
+            if (original == null || sameCodec(format, current)) {
+                original = format;
+            }
+        }
+        if (original != null) {
+            Log.i(TAG, "Audio %s -> %s", current.getLanguage(), original.getLanguage());
+            mSavedAudioFormat = current;
+            getPlayer().setFormat(original);
+        }
+    }
+
+    private void restoreAudioFormat() {
+        if (mSavedAudioFormat != null && getPlayer() != null) {
+            getPlayer().setFormat(mSavedAudioFormat);
+        }
+        mSavedAudioFormat = null;
+    }
+
+    private static boolean sameCodec(FormatItem a, FormatItem b) {
+        return a.getTrack() != null && b.getTrack() != null && a.getTrack().format != null && b.getTrack().format != null
+                && Helpers.equals(a.getTrack().format.codecs, b.getTrack().format.codecs);
     }
 
     private void duck() {
