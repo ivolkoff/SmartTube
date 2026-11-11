@@ -1,0 +1,128 @@
+name: Vox build
+
+# Rebases feature/vox onto the latest upstream master, builds the stvox flavor and publishes it
+# to the vox-latest release, which the app's built-in update checker reads (update_urls.xml).
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  push:
+    branches: [ "feature/vox" ]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild even if nothing changed'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vox-build
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: vox-latest
+
+    steps:
+      - name: Checkout feature/vox
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: feature/vox
+          fetch-depth: 0
+
+      # The rebased tree is only built, never pushed: GITHUB_TOKEN may not push upstream's workflow
+      # changes. A conflict fails the run (GitHub emails), then rebase feature/vox by hand.
+      - name: Rebase onto upstream
+        id: src
+        run: |
+          git config user.name "vox-bot"
+          git config user.email "vox-bot@users.noreply.github.com"
+          git remote add upstream https://github.com/yuliskov/SmartTube.git
+          git fetch --no-tags upstream master
+          git rebase upstream/master
+          git submodule update --init --recursive
+          marker="upstream=$(git rev-parse --short upstream/master) vox=$(git rev-parse --short origin/feature/vox)"
+          echo "marker=$marker" >> "$GITHUB_OUTPUT"
+          if [ "${{ inputs.force }}" != "true" ] && gh release view "$RELEASE_TAG" --json body -q .body 2>/dev/null | grep -qF "$marker"; then
+            echo "Already built: $marker"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK 17
+        if: steps.src.outputs.skip != 'true'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      # versionCode must grow with every build or the update checker won't offer it
+      - name: Version and secrets
+        if: steps.src.outputs.skip != 'true'
+        id: ver
+        run: |
+          code=$(grep -m1 -oP 'versionCode \K\d+' smarttubetv/build.gradle)
+          name=$(grep -m1 -oP 'versionName "\K[^"]+' smarttubetv/build.gradle)
+          new_code=$((code * 1000 + GITHUB_RUN_NUMBER % 1000))
+          new_name="$name-vox.$GITHUB_RUN_NUMBER"
+          sed -i "0,/versionCode $code/s//versionCode $new_code/" smarttubetv/build.gradle
+          sed -i "0,/versionName \"$name\"/s//versionName \"$new_name\"/" smarttubetv/build.gradle
+          echo "code=$new_code" >> "$GITHUB_OUTPUT"
+          echo "name=$new_name" >> "$GITHUB_OUTPUT"
+
+          echo "${{ secrets.VOX_SIGNING_KEY }}" | base64 --decode > "$RUNNER_TEMP/vox.jks"
+          {
+            echo "storePassword=${{ secrets.VOX_KEY_STORE_PASSWORD }}"
+            echo "keyAlias=${{ secrets.VOX_KEY_ALIAS }}"
+            echo "keyPassword=${{ secrets.VOX_KEY_PASSWORD }}"
+            echo "storeFile=$RUNNER_TEMP/vox.jks"
+          } > keystore.properties
+          {
+            echo "vox.yandexClientId=${{ secrets.VOX_YANDEX_CLIENT_ID }}"
+            echo "vox.yandexClientSecret=${{ secrets.VOX_YANDEX_CLIENT_SECRET }}"
+          } > local.properties
+
+      - name: Test
+        if: steps.src.outputs.skip != 'true'
+        run: ./gradlew --no-daemon :common:testStstableDebugUnitTest --tests 'com.liskovsoft.smartyoutubetv2.common.vot.*'
+
+      - name: Build
+        if: steps.src.outputs.skip != 'true'
+        run: ./gradlew --no-daemon :smarttubetv:assembleStvoxRelease
+
+      - name: Publish release
+        if: steps.src.outputs.skip != 'true'
+        run: |
+          mkdir out
+          for apk in smarttubetv/build/outputs/apk/stvox/release/*.apk; do
+            abi=$(basename "$apk" .apk | awk -F_ '{print $NF}')
+            cp "$apk" "out/smarttube_vox_$abi.apk"
+          done
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/$RELEASE_TAG"
+          python3 - "$base" "${{ steps.ver.outputs.name }}" "${{ steps.ver.outputs.code }}" "${{ steps.src.outputs.marker }}" > out/smarttube_vox.json <<'PY'
+          import json, sys
+          base, name, code, marker = sys.argv[1:]
+          url = lambda abi: [f"{base}/smarttube_vox_{abi}.apk"]
+          print(json.dumps({
+              "package": {
+                  "downloadUrlList": url("universal"),
+                  "downloadUrlList_armeabi-v7a": url("armeabi-v7a"),
+                  "downloadUrlList_arm64-v8a": url("arm64-v8a"),
+                  "downloadUrlList_x86": url("x86"),
+              },
+              name: {"versionCode": int(code), "changelog": [f"Sync with upstream SmartTube ({marker})"]},
+          }, indent=2))
+          PY
+          ls -la out
+          notes="${{ steps.ver.outputs.name }} built from ${{ steps.src.outputs.marker }}"
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "SmartTube Vox ${{ steps.ver.outputs.name }}" --notes "$notes"
+          else
+            gh release create "$RELEASE_TAG" --target feature/vox --latest=false \
+              --title "SmartTube Vox ${{ steps.ver.outputs.name }}" --notes "$notes"
+          fi
+          gh release upload "$RELEASE_TAG" out/* --clobber
