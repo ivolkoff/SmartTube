@@ -35,18 +35,22 @@ jobs:
           ref: feature/vox
           fetch-depth: 0
 
+      # Builds on the latest stable upstream release (GitHub "Latest", tag like 32.71s), not on master betas.
       # The rebased tree is only built, never pushed: GITHUB_TOKEN may not push upstream's workflow
       # changes. A conflict fails the run (GitHub emails), then rebase feature/vox by hand.
-      - name: Rebase onto upstream
+      - name: Rebase onto upstream stable
         id: src
         run: |
           git config user.name "vox-bot"
           git config user.email "vox-bot@users.noreply.github.com"
           git remote add upstream https://github.com/yuliskov/SmartTube.git
-          git fetch --no-tags upstream master
-          git rebase upstream/master
+          stable=$(gh api repos/yuliskov/SmartTube/releases/latest -q .tag_name)
+          [[ "$stable" =~ ^[0-9]+\.[0-9]+s$ ]] || { echo "Unexpected stable tag: $stable"; exit 1; }
+          git fetch --no-tags upstream master "refs/tags/$stable:refs/tags/$stable"
+          # replay only the vox commits, wherever feature/vox currently sits on upstream history
+          git rebase --onto "$stable" "$(git merge-base HEAD upstream/master)"
           git submodule update --init --recursive
-          marker="upstream=$(git rev-parse --short upstream/master) vox=$(git rev-parse --short origin/feature/vox)"
+          marker="upstream=$stable vox=$(git rev-parse --short origin/feature/vox)"
           echo "marker=$marker" >> "$GITHUB_OUTPUT"
           if [ "${{ inputs.force }}" != "true" ] && gh release view "$RELEASE_TAG" --json body -q .body 2>/dev/null | grep -qF "$marker"; then
             echo "Already built: $marker"
@@ -61,14 +65,15 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      # versionCode must grow with every build or the update checker won't offer it
+      # versionCode must grow with every build or the update checker won't offer it. It follows the run
+      # number, not upstream's code: stable codes are lower than the betas already shipped (32.74-vox.8 = 2464008).
       - name: Version and secrets
         if: steps.src.outputs.skip != 'true'
         id: ver
         run: |
           code=$(grep -m1 -oP 'versionCode \K\d+' smarttubetv/build.gradle)
           name=$(grep -m1 -oP 'versionName "\K[^"]+' smarttubetv/build.gradle)
-          new_code=$((code * 1000 + GITHUB_RUN_NUMBER % 1000))
+          new_code=$((2465000 + GITHUB_RUN_NUMBER))
           new_name="$name-vox.$GITHUB_RUN_NUMBER"
           sed -i "0,/versionCode $code/s//versionCode $new_code/" smarttubetv/build.gradle
           sed -i "0,/versionName \"$name\"/s//versionName \"$new_name\"/" smarttubetv/build.gradle
