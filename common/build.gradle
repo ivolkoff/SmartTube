@@ -71,6 +71,7 @@ dependencies {
     implementation project(':youtubeapi')
     implementation project(':filepicker-lib')
     implementation 'com.google.zxing:core:3.3.3' // Vox: local QR for Yandex login
+    implementation 'com.google.protobuf:protobuf-javalite:3.17.3' // Vox: SABR audio requests; keep in sync with exoplayer constants.gradle protobufVersion
 
     implementation 'io.reactivex.rxjava2:rxandroid:' + rxAndroidVersion
     implementation 'io.reactivex.rxjava2:rxjava:' + rxJavaVersion

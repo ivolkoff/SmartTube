@@ -56,6 +56,12 @@ public final class VotMediaFormatSelector {
      */
     @Nullable
     public static MediaFormat selectBestAudioFormat(@Nullable List<MediaFormat> formats) {
+        return selectBestAudioFormat(formats, true);
+    }
+
+    /** @param requireUrl false for SABR formats: they have no direct url and are fetched by {@link VotSabrAudioDownloader} */
+    @Nullable
+    public static MediaFormat selectBestAudioFormat(@Nullable List<MediaFormat> formats, boolean requireUrl) {
         if (formats == null || formats.isEmpty()) {
             return null;
         }
@@ -65,7 +71,7 @@ public final class VotMediaFormatSelector {
         boolean hasNonDubbed = false;
 
         for (MediaFormat f : formats) {
-            if (!isValidAudioFormat(f)) {
+            if (requireUrl ? !isValidAudioFormat(f) : !isAudioMime(f)) {
                 continue;
             }
 
@@ -173,6 +179,11 @@ public final class VotMediaFormatSelector {
         }
 
         return true;
+    }
+
+    private static boolean isAudioMime(@Nullable MediaFormat format) {
+        String mime = format != null ? format.getMimeType() : null;
+        return mime != null && mime.trim().toLowerCase(Locale.US).startsWith("audio/");
     }
 
     public static boolean isCompatibleMime(@Nullable String mimeType) {

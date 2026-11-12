@@ -23,9 +23,11 @@ import com.liskovsoft.smartyoutubetv2.common.vot.VotAudioSource;
 import com.liskovsoft.smartyoutubetv2.common.vot.VotClient;
 import com.liskovsoft.smartyoutubetv2.common.vot.VotMediaFormatSelector;
 import com.liskovsoft.smartyoutubetv2.common.vot.VotProgress;
+import com.liskovsoft.smartyoutubetv2.common.vot.VotSabrAudioDownloader;
 import com.liskovsoft.smartyoutubetv2.common.vot.VotYouTubeAudioSource;
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -176,12 +178,23 @@ public class VoxTranslateController extends BasePlayerController {
     private static VotAudioSource getAudioSource(String videoId) {
         MediaItemFormatInfo info = YouTubeServiceManager.instance().getMediaItemService().getFormatInfo(videoId);
         MediaFormat best = info != null ? VotMediaFormatSelector.selectBestAudioFormat(info.getAdaptiveFormats()) : null;
-        if (best == null) {
+        if (best != null) {
+            Log.i(TAG, "Uploading audio: %s", VotMediaFormatSelector.safeFormatDescription(best));
+            return VotYouTubeAudioSource.fromMediaFormat(best);
+        }
+        MediaFormat sabr = info != null && info.containsSabrFormats()
+                ? VotMediaFormatSelector.selectBestAudioFormat(info.getAdaptiveFormats(), false) : null;
+        if (sabr == null) {
             Log.w(TAG, "No audio format to upload for %s", videoId);
             return null;
         }
-        Log.i(TAG, "Uploading audio: %s", VotMediaFormatSelector.safeFormatDescription(best));
-        return VotYouTubeAudioSource.fromMediaFormat(best);
+        Log.i(TAG, "Downloading audio over SABR: %s", VotMediaFormatSelector.safeFormatDescription(sabr));
+        try {
+            return VotAudioSource.fromBytes(VotSabrAudioDownloader.download(info, sabr));
+        } catch (IOException | RuntimeException e) {
+            Log.e(TAG, "SABR audio download failed for %s: %s", videoId, e);
+            return null;
+        }
     }
 
     private void onProgress(int sessionId, VotProgress progress) {
