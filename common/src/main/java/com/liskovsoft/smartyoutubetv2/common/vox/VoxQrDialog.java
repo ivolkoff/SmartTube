@@ -3,6 +3,7 @@ package com.liskovsoft.smartyoutubetv2.common.vox;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -21,11 +22,12 @@ import java.util.Collections;
 
 /** Login prompt with a locally generated QR code (no third-party QR service). */
 public class VoxQrDialog {
-    private static final int QR_SIZE_PX = 400;
-
     public static AlertDialog show(Activity activity, String title, String url, String text, Runnable onDismiss) {
+        // a fixed size overflowed 720p screens: title, text and button must fit under the code
+        DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
+        int size = Math.min(metrics.widthPixels, metrics.heightPixels) * 2 / 5;
         ImageView qr = new ImageView(activity);
-        qr.setImageBitmap(encode(url));
+        qr.setImageBitmap(encode(url, size));
 
         TextView label = new TextView(activity);
         label.setText(text);
@@ -37,7 +39,7 @@ public class VoxQrDialog {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
         layout.setPadding(48, 24, 48, 24);
-        layout.addView(qr, new LinearLayout.LayoutParams(QR_SIZE_PX, QR_SIZE_PX));
+        layout.addView(qr, new LinearLayout.LayoutParams(size, size));
         layout.addView(label);
 
         AlertDialog dialog = new AlertDialog.Builder(activity, R.style.AppDialog)
@@ -50,17 +52,17 @@ public class VoxQrDialog {
         return dialog;
     }
 
-    static Bitmap encode(String data) {
+    static Bitmap encode(String data, int size) {
         try {
-            BitMatrix matrix = new QRCodeWriter().encode(data, BarcodeFormat.QR_CODE, QR_SIZE_PX, QR_SIZE_PX,
+            BitMatrix matrix = new QRCodeWriter().encode(data, BarcodeFormat.QR_CODE, size, size,
                     Collections.singletonMap(EncodeHintType.MARGIN, 1));
-            int[] pixels = new int[QR_SIZE_PX * QR_SIZE_PX];
-            for (int y = 0; y < QR_SIZE_PX; y++) {
-                for (int x = 0; x < QR_SIZE_PX; x++) {
-                    pixels[y * QR_SIZE_PX + x] = matrix.get(x, y) ? Color.BLACK : Color.WHITE;
+            int[] pixels = new int[size * size];
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    pixels[y * size + x] = matrix.get(x, y) ? Color.BLACK : Color.WHITE;
                 }
             }
-            return Bitmap.createBitmap(pixels, QR_SIZE_PX, QR_SIZE_PX, Bitmap.Config.RGB_565);
+            return Bitmap.createBitmap(pixels, size, size, Bitmap.Config.RGB_565);
         } catch (WriterException e) {
             throw new IllegalArgumentException(e);
         }
